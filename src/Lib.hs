@@ -31,16 +31,18 @@ decimalP = do intPart <- some digitChar
 
 
 multP :: Decimal -> Bool -> Parser String
-multP m v = do before <- some (satisfy $ not . (liftM3 or3 isNumber (== '-') (== '+')))
+multP m v = do before1 <- some (satisfy $ not . (liftM4 or4 isNumber (== '-') (== '+') (== '=')))
+               eq <- single '='
+               before2 <- some (satisfy isSpace)
                num <- MCL.signed MC.space decimalP
-               after1 <- optional . try $ some (satisfy $ not . isNumber)
+               after1 <- optional . try $ (some (satisfy $ not . liftM2 (||) isNumber (== '=')) <|> some spaceChar)
                let after2 = case after1 of Just a  -> a
                                            Nothing -> ""
-               let ol = concat [before, show num, after2]
-               let l = concat [before, show (num *. m), after2]
+               let ol = concat [before1, [eq], before2, show num, after2]
+               let l  = concat [before1, [eq], before2, show (num *. m), after2]
                return (case v of True  -> trace ("Set " ++ show num ++ " to " ++ show (num *. m) ++ " in:\n" ++ ol ++ "\n") l
                                  False -> l)
-               where or3 a b c = (a || b) || c
+               where or4 a b c d = ((a || b) || c) || d
 
 lineP :: Decimal -> Bool -> Parser String
 lineP m v  = (try (multP m v)) <|> (try genericP) <|> emptyP
